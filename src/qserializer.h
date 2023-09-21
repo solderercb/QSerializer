@@ -537,7 +537,7 @@ protected:                                                                      
         QDomText valueOfProp = doc.createTextNode(text);                                                \
         element.appendChild(valueOfProp);                                                               \
         doc.appendChild(element);                                                                       \
-        return  QDomNode(doc);                                                                          \
+        return  QDomNode(element);                                                                      \
     }                                                                                                   \
     void SET(xml, name)(const QDomNode &node)                                                           \
     {                                                                                                   \
