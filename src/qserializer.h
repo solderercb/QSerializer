@@ -1,4 +1,4 @@
-﻿/*
+/*
  MIT License
 
  Copyright (c) 2020-2021 Agadzhanov Vladimir
@@ -55,7 +55,7 @@
 #include <type_traits>
 #include <QDebug>
 
-#define QS_VERSION "1.3.1"
+#define QS_VERSION "1.3.2"
 
 /* Generate metaObject method */
 #define QS_META_OBJECT_METHOD \
@@ -117,6 +117,8 @@ public:
 
         if(value.isString())
             return value.toString().toLocal8Bit();
+
+        return QByteArray();
     }
 #endif
 
@@ -161,12 +163,6 @@ public:
     /*! \brief  Returns JsonValue of single element (property) object. */
     QByteArray toRawJsonArray() const
     {
-#ifdef QS_HAS_XML
-        Q_ASSERT_X(metaObject()->propertyCount() == 2, metaObject()->className(), "Property count more than one");
-#else
-        Q_ASSERT_X(metaObject()->propertyCount() == 1, metaObject()->className(), "Property count more than one");
-#endif
-
         int i = 0;
 #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
         if(QString(metaObject()->property(i).typeName()) != QMetaType::typeName(qMetaTypeId<QJsonValue>()))
@@ -221,12 +217,6 @@ public:
     /*! \brief  Deserialize array of values for objects containing single element (property) */
     void fromJsonArray(const QByteArray &data)
     {
-#ifdef QS_HAS_XML
-        Q_ASSERT_X(metaObject()->propertyCount() == 2, metaObject()->className(), "Property count more than one");
-#else
-        Q_ASSERT_X(metaObject()->propertyCount() == 1, metaObject()->className(), "Property count more than one");
-#endif
-
         int i = 0;
 #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
         if(QString(metaObject()->property(i).typeName()) != QMetaType::typeName(qMetaTypeId<QJsonValue>()))
@@ -254,6 +244,7 @@ public:
 
     void dbg_message(const QString &message)
     {
+        Q_UNUSED(message)
 #ifdef QT_DEBUG
 //        qDebug().nospace().noquote() << tmp_indent << message;
 #endif
@@ -261,6 +252,7 @@ public:
 
     void dbg_message_at_method_invoke(const QString &message)
     {
+        Q_UNUSED(message)
 #ifdef QT_DEBUG
         dbg_message(message + "\n" + tmp_indent + "{");
         tmp_indent.append("    ");
@@ -269,6 +261,7 @@ public:
 
     void dbg_message_before_return(const QString &message)
     {
+        Q_UNUSED(message)
 #ifdef QT_DEBUG
         dbg_message(message);
         tmp_indent.chop(4);
@@ -278,6 +271,7 @@ public:
 
     void dbg_nodeFirstBytes(const QDomNode &node)
     {
+        Q_UNUSED(node)
 #ifdef QT_DEBUG
         QString str;
         QTextStream stream(&str);
@@ -468,33 +462,13 @@ protected:                                                                      
     QString attribute_##name = QString(defaultValue);                                                   \
 
 /* Create variable */
-#define QS_DECLARE_MEMBER(type, name)                                                       \
-    public :                                                                                \
-    type name = type();                                                                     \
-
-/* Create XML property and methods for node attribute*/
-#ifdef QS_HAS_XML
-#define QS_XML_ATTRIBUTE(name)                                                                          \
-    Q_PROPERTY(QDomNode attribute_##name READ GET(xml, attribute_##name) WRITE SET(xml, attribute_##name))  \
-    private:                                                                                            \
-    QDomNode GET(xml, attribute_##name)() const                                                         \
-    {                                                                                                   \
-        QDomDocument doc;                                                                               \
-        QDomAttr a = doc.createAttribute(#name);                                                        \
-        a.setValue(QString(attribute_##name));                                                          \
-        return a;                                                                                       \
-    }                                                                                                   \
-    void SET(xml, attribute_##name)(const QDomNode &node)                                               \
-    {                                                                                                   \
-        attribute_##name = node.toAttr().value();                                                       \
-    }
-#else
-#define QS_XML_ATTRIBUTE(name)
-#endif
+#define QS_DECLARE_MEMBER(type, name)                                                                   \
+    public :                                                                                            \
+    type name = type();                                                                                 \
 
 /* Create JSON property and methods for primitive type field*/
 #ifdef QS_HAS_JSON
-#define QS_JSON_FIELD(type, name)                                                                       \
+#define JSON_FIELD_MACRO(type, name)                                                                    \
     Q_PROPERTY(QJsonValue name READ GET(json, name) WRITE SET(json, name))                              \
     private:                                                                                            \
     QJsonValue GET(json, name)() const                                                                  \
@@ -513,12 +487,12 @@ protected:                                                                      
         name = varname.toVariant().value<type>();                                                       \
     }
 #else
-#define QS_JSON_FIELD(type, name)
+#define JSON_FIELD_MACRO(type, name)
 #endif
 
 /* Create XML property and methods for primitive type field*/
 #ifdef QS_HAS_XML
-#define QS_XML_FIELD(type, name)                                                                        \
+#define XML_FIELD_MACRO(type, name)                                                                     \
     Q_PROPERTY(QDomNode name READ GET(xml, name) WRITE SET(xml, name))                                  \
     private:                                                                                            \
     QDomNode GET(xml, name)() const                                                                     \
@@ -554,12 +528,12 @@ protected:                                                                      
         }                                                                                               \
     }                                                                                       
 #else
-#define QS_XML_FIELD(type, name)
+#define XML_FIELD_MACRO(type, name)
 #endif
 
 /* Create JSON property and methods for primitive type field with asterisk mark at end */
 #ifdef QS_HAS_JSON
-#define QS_JSON_MARKED_FIELD(type, name)                                                                \
+#define JSON_MARKED_FIELD_MACRO(type, name)                                                             \
     Q_PROPERTY(QJsonValue name READ GET(json, name) WRITE SET(json, name))                              \
     private:                                                                                            \
     QJsonValue GET(json, name)() const                                                                  \
@@ -579,12 +553,12 @@ protected:                                                                      
         name = QVariant(value).value<type>();                                                           \
     }
 #else
-#define QS_JSON_MARKED_FIELD(type, name)
+#define JSON_MARKED_FIELD_MACRO(type, name)
 #endif
 
 /* Create XML property and methods for primitive type field with asterisk mark at end */
 #ifdef QS_HAS_XML
-#define QS_XML_MARKED_FIELD(type, name)                                                                 \
+#define XML_MARKED_FIELD_MACRO(type, name)                                                              \
     Q_PROPERTY(QDomNode name READ GET(xml, name) WRITE SET(xml, name))                                  \
     private:                                                                                            \
     QDomNode GET(xml, name)() const                                                                     \
@@ -625,12 +599,12 @@ protected:                                                                      
         }                                                                                               \
     }
 #else
-#define QS_XML_MARKED_FIELD(type, name)
+#define XML_MARKED_FIELD_MACRO(type, name)
 #endif
 
 /* Create JSON property and methods for paired type fields (QSize, QPoint)*/
 #ifdef QS_HAS_JSON
-#define QS_JSON_PAIR_FIELD(type, name)                                                                  \
+#define JSON_PAIR_FIELD_MACRO(type, name)                                                               \
     Q_PROPERTY(QJsonValue name READ GET(json, name) WRITE SET(json, name))                              \
     private:                                                                                            \
     QJsonValue GET(json, name)() const                                                                  \
@@ -649,12 +623,12 @@ protected:                                                                      
         name = type(text.split(',').at(0).toInt(), text.split(',').at(1).toInt());                      \
     }
 #else
-#define QS_JSON_PAIR_FIELD(type, name)
+#define JSON_PAIR_FIELD_MACRO(type, name)
 #endif
 
 /* Create XML property and methods for QSize type field*/
 #ifdef QS_HAS_XML
-#define QS_XML_PAIR_FIELD(type, name)                                                                   \
+#define XML_PAIR_FIELD_MACRO(type, name)                                                                \
     Q_PROPERTY(QDomNode name READ GET(xml, name) WRITE SET(xml, name))                                  \
     private:                                                                                            \
     QDomNode GET(xml, name)() const                                                                     \
@@ -687,13 +661,13 @@ protected:                                                                      
         }                                                                                               \
     }
 #else
-#define QS_XML_PAIR_FIELD(type, name)
+#define XML_PAIR_FIELD_MACRO(type, name)
 #endif
 
 /* Generate JSON-property and methods for primitive type objects */
 /* This collection must be provide method append(T) (it's can be QList, QVector)    */
 #ifdef QS_HAS_JSON
-#define QS_JSON_ARRAY(itemType, name)                                                                   \
+#define JSON_ARRAY_MACRO(itemType, name)                                                                \
     Q_PROPERTY(QJsonValue name READ GET(json, name) WRITE SET(json, name))                              \
     private:                                                                                            \
         QJsonValue GET(json, name)() const                                                              \
@@ -717,13 +691,13 @@ protected:                                                                      
             }                                                                                           \
         }
 #else
-#define QS_JSON_ARRAY(itemType, name)
+#define JSON_ARRAY_MACRO(itemType, name)
 #endif
 
 /* Generate XML-property and methods for primitive type objects */
 /* This collection must be provide method append(T) (it's can be QList, QVector)    */
 #ifdef QS_HAS_XML
-#define QS_XML_ARRAY(itemType, name)                                                                    \
+#define XML_ARRAY_MACRO(itemType, name)                                                                 \
     Q_PROPERTY(QDomNode name READ GET(xml, name) WRITE SET(xml, name))                                  \
     private:                                                                                            \
         QDomNode GET(xml, name)() const                                                                 \
@@ -762,14 +736,14 @@ protected:                                                                      
             }                                                                                           \
         }
 #else
-#define QS_XML_ARRAY(itemType, name)
+#define XML_ARRAY_MACRO(itemType, name)
 #endif
 
 
 /* Generate JSON-property and methods for some custom class */
 /* Custom type must be provide methods fromJson and toJson or inherit from QSerializer */
 #ifdef QS_HAS_JSON
-#define QS_JSON_OBJECT(type, name)                                                                      \
+#define JSON_OBJECT_MACRO(type, name)                                                                   \
     Q_PROPERTY(QJsonValue name READ GET(json, name) WRITE SET(json, name))                              \
     private:                                                                                            \
     QJsonValue GET(json, name)() const                                                                  \
@@ -784,13 +758,13 @@ protected:                                                                      
         name.fromJson(varname);                                                                         \
     }
 #else
-#define QS_JSON_OBJECT(type, name)
+#define JSON_OBJECT_MACRO(type, name)
 #endif
 
 /* Generate XML-property and methods for some custom class */
 /* Custom type must be provide methods fromJson and toJson or inherit from QSerializer */
 #ifdef QS_HAS_XML
-#define QS_XML_OBJECT(type, name)                                                                       \
+#define XML_OBJECT_MACRO(type, name)                                                                    \
     Q_PROPERTY(QDomNode name READ GET(xml, name) WRITE SET(xml, name))                                  \
     private:                                                                                            \
         QDomNode GET(xml, name)() const                                                                 \
@@ -804,14 +778,14 @@ protected:                                                                      
             name.fromXml(node);                                                                         \
         }
 #else
-#define QS_XML_OBJECT(type, name)
+#define XML_OBJECT_MACRO(type, name)
 #endif
 
 /* Generate JSON-property and methods for collection of custom type objects */
 /* Custom item type must be provide methods fromJson and toJson or inherit from QSerializer */
 /* This collection must be provide method append(T) (it's can be QList, QVector)    */
 #ifdef QS_HAS_JSON
-#define QS_JSON_ARRAY_OBJECTS(itemType, name)                                                           \
+#define JSON_ARRAY_OBJECTS_MACRO(itemType, name)                                                        \
     Q_PROPERTY(QJsonValue name READ GET(json, name) WRITE SET(json, name))                              \
     private:                                                                                            \
         QJsonValue GET(json, name)() const                                                              \
@@ -835,14 +809,14 @@ protected:                                                                      
             }                                                                                           \
         }
 #else
-#define QS_JSON_ARRAY_OBJECTS(itemType, name)
+#define JSON_ARRAY_OBJECTS_MACRO(itemType, name)
 #endif
 
 /* Generate XML-property and methods for collection of custom type objects  */
 /* Custom type must be provide methods fromXml and toXml or inherit from QSerializer */
 /* This collection must be provide method append(T) (it's can be QList, QVector)    */
 #ifdef QS_HAS_XML
-#define QS_XML_ARRAY_OBJECTS(itemType, name)                                                            \
+#define XML_ARRAY_OBJECTS_MACRO(itemType, name)                                                         \
     Q_PROPERTY(QDomNode name READ GET(xml, name) WRITE SET(xml, name))                                  \
     private:                                                                                            \
     QDomNode GET(xml, name)() const                                                                     \
@@ -876,7 +850,7 @@ protected:                                                                      
         }                                                                                               \
     }                                                                                       
 #else
-#define QS_XML_ARRAY_OBJECTS(itemType, name)
+#define XML_ARRAY_OBJECTS_MACRO(itemType, name)
 #endif
 
 /* Generate JSON-property and methods for dictionary of simple fields (int, bool, QString, ...)  */
@@ -884,7 +858,7 @@ protected:                                                                      
 /* This collection must be provide method insert(KeyT, ValueT) (it's can be QMap, QHash)    */
 /* THIS IS FOR QT DICTIONARY TYPES, for example QMap<int, QString>, QMap<int,int>, ...*/
 #ifdef QS_HAS_JSON
-#define QS_JSON_QT_DICT(map, name)                                                                      \
+#define JSON_QT_DICT_MACRO(map, name)                                                                   \
     Q_PROPERTY(QJsonValue name READ GET(json, name) WRITE SET(json,name))                               \
     private:                                                                                            \
     QJsonValue GET(json, name)() const                                                                  \
@@ -910,7 +884,7 @@ protected:                                                                      
         }                                                                                               \
     }                                                                                       
 #else
-#define QS_JSON_QT_DICT(map, name)
+#define JSON_QT_DICT_MACRO(map, name)
 #endif
 
 /* Generate XML-property and methods for dictionary of simple fields (int, bool, QString, ...)  */
@@ -918,7 +892,7 @@ protected:                                                                      
 /* This collection must be provide method insert(KeyT, ValueT) (it's can be QMap, QHash)    */
 /* THIS IS FOR QT DICTIONARY TYPES, for example QMap<int, QString>, QMap<int,int>, ...*/
 #ifdef QS_HAS_XML
-#define QS_XML_QT_DICT(map, name)                                                                       \
+#define XML_QT_DICT_MACRO(map, name)                                                                    \
     Q_PROPERTY(QDomNode name READ GET(xml, name) WRITE SET(xml, name))                                  \
     private:                                                                                            \
     QDomNode GET(xml, name)() const                                                                     \
@@ -958,7 +932,7 @@ protected:                                                                      
         }                                                                                               \
     }                                                                                                   
 #else
-#define QS_XML_QT_DICT(map, name)
+#define XML_QT_DICT_MACRO(map, name)
 #endif
 
 
@@ -967,7 +941,7 @@ protected:                                                                      
 /* This collection must be provide method inserv(KeyT, ValueT) (it's can be QMap, QHash)    */
 /* THIS IS FOR QT DICTIONARY TYPES, for example QMap<int, CustomSerializableType> */
 #ifdef QS_HAS_JSON
-#define QS_JSON_QT_DICT_OBJECTS(map, name)                                                              \
+#define JSON_QT_DICT_OBJECTS_MACRO(map, name)                                                           \
     Q_PROPERTY(QJsonValue name READ GET(json, name) WRITE SET(json,name))                               \
     private:                                                                                            \
     QJsonValue GET(json, name)() const                                                                  \
@@ -995,7 +969,7 @@ protected:                                                                      
         }                                                                                               \
     }                                                                                       
 #else
-#define QS_JSON_QT_DICT_OBJECTS(map, name)
+#define JSON_QT_DICT_OBJECTS_MACRO(map, name)
 #endif
 
 /* Generate XML-property and methods for dictionary of custom type objects  */
@@ -1003,7 +977,7 @@ protected:                                                                      
 /* This collection must be provide method insert(KeyT, ValueT) (it's can be QMap, QHash)    */
 /* THIS IS FOR QT DICTIONARY TYPES, for example QMap<int, CustomSerializableType> */
 #ifdef QS_HAS_XML
-#define QS_XML_QT_DICT_OBJECTS(map, name)                                                               \
+#define XML_QT_DICT_OBJECTS_MACRO(map, name)                                                            \
     Q_PROPERTY(QDomNode name READ GET(xml, name) WRITE SET(xml, name))                                  \
     private:                                                                                            \
     QDomNode GET(xml, name)() const                                                                     \
@@ -1044,7 +1018,7 @@ protected:                                                                      
         }                                                                                               \
     }                                                                                                   
 #else
-#define QS_XML_QT_DICT_OBJECTS(map, name)
+#define XML_QT_DICT_OBJECTS_MACRO(map, name)
 #endif
 
 /* Generate JSON-property and methods for dictionary of simple fields (int, bool, QString, ...)  */
@@ -1052,7 +1026,7 @@ protected:                                                                      
 /* This collection must be provide method insert(KeyT, ValueT) (it's can be std::map)    */
 /* THIS IS FOR STL DICTIONARY TYPES, for example std::map<int, QString>, std::map<int,int>, ...*/
 #ifdef QS_HAS_JSON
-#define QS_JSON_STL_DICT(map, name)                                                                     \
+#define JSON_STL_DICT_MACRO(map, name)                                                                  \
     Q_PROPERTY(QJsonValue name READ GET(json, name) WRITE SET(json,name))                               \
     private:                                                                                            \
     QJsonValue GET(json, name)() const                                                                  \
@@ -1077,11 +1051,11 @@ protected:                                                                      
         }                                                                                               \
     }                                                                                       
 #else
-#define QS_JSON_STL_DICT(map, name)
+#define JSON_STL_DICT_MACRO(map, name)
 #endif
 
 #ifdef QS_HAS_XML
-#define QS_XML_STL_DICT(map, name)                                                                      \
+#define XML_STL_DICT_MACRO(map, name)                                                                   \
     Q_PROPERTY(QDomNode name READ GET(xml, name) WRITE SET(xml, name))                                  \
     private:                                                                                            \
     QDomNode GET(xml, name)() const                                                                     \
@@ -1121,7 +1095,7 @@ protected:                                                                      
         }                                                                                               \
     }                                                                                                   
 #else
-#define QS_XML_STL_DICT(map, name)                                                                    
+#define XML_STL_DICT_MACRO(map, name)
 #endif
 
 /* Generate JSON-property and methods for dictionary of custom type objects */
@@ -1129,7 +1103,7 @@ protected:                                                                      
 /* This collection must be provide method insert(KeyT, ValueT) (it's can be std::map)    */
 /* THIS IS FOR STL DICTIONARY TYPES, for example std::map<int, CustomSerializableType> */
 #ifdef QS_HAS_JSON
-#define QS_JSON_STL_DICT_OBJECTS(map, name)                                                             \
+#define JSON_STL_DICT_OBJECTS_MACRO(map, name)                                                          \
     Q_PROPERTY(QJsonValue name READ GET(json, name) WRITE SET(json,name))                               \
     private:                                                                                            \
     QJsonValue GET(json, name)() const                                                                  \
@@ -1156,7 +1130,7 @@ protected:                                                                      
         }                                                                                               \
     }                                                                                       
 #else
-#define QS_JSON_STL_DICT_OBJECTS(map, name)                               
+#define JSON_STL_DICT_OBJECTS_MACRO(map, name)
 #endif
 
 /* Generate XML-property and methods for dictionary of custom type objects */
@@ -1164,7 +1138,7 @@ protected:                                                                      
 /* This collection must be provide method insert(KeyT, ValueT) (it's can be std::map)    */
 /* THIS IS FOR STL DICTIONARY TYPES, for example std::map<int, CustomSerializableType> */
 #ifdef QS_HAS_XML
-#define QS_XML_STL_DICT_OBJECTS(map, name)                                                              \
+#define XML_STL_DICT_OBJECTS_MACRO(map, name)                                                           \
     Q_PROPERTY(QDomNode name READ GET(xml, name) WRITE SET(xml, name))                                  \
     private:                                                                                            \
     QDomNode GET(xml, name)() const                                                                     \
@@ -1207,83 +1181,95 @@ protected:                                                                      
         }                                                                                               \
     }
 #else
-#define QS_XML_STL_DICT_OBJECTS(map, name)
+#define XML_STL_DICT_OBJECTS_MACRO(map, name)
 #endif
 
-
-/* BIND: */
-/* generate serializable propertyes for XML attribute */
-#define QS_BIND_ATTRIBUTE(name)                                                                         \
-    QS_XML_ATTRIBUTE(name)
-
+/* QS_BIND_* marcos may be used only if either QS_HAS_JSON or QS_HAS_XML defined, otherwise
+ * compiler will warn about multiple definition of property */
 /* BIND: */
 /* generate serializable propertyes JSON and XML for primitive type field */
 #define QS_BIND_FIELD(type, name)                                                                       \
-    QS_JSON_FIELD(type, name)                                                                           \
-    QS_XML_FIELD(type, name)
+    JSON_FIELD_MACRO(type, name)                                                                        \
+    XML_FIELD_MACRO(type, name)
 
 /* BIND: */
 /* generate serializable propertyes JSON and XML for primitive type field with asterisk mark */
 #define QS_BIND_MARKED_FIELD(type, name)                                                                \
-    QS_JSON_MARKED_FIELD(type, name)                                                                    \
-    QS_XML_MARKED_FIELD(type, name)
+    JSON_MARKED_FIELD_MACRO(type, name)                                                                 \
+    XML_MARKED_FIELD_MACRO(type, name)
 
 /* BIND: */
 /* generate serializable propertyes JSON and XML for paired type fields (QSize, QPoint) */
 #define QS_BIND_PAIR_FIELD(type, name)                                                                  \
-    QS_JSON_PAIR_FIELD(type, name)                                                                      \
-    QS_XML_PAIR_FIELD(type, name)
+    JSON_PAIR_FIELD_MACRO(type, name)                                                                   \
+    XML_PAIR_FIELD_MACRO(type, name)
 
 /* BIND: */
 /* generate serializable propertyes JSON and XML for collection of primitive type fields */
 #define QS_BIND_COLLECTION(itemType, name)                                                              \
-    QS_JSON_ARRAY(itemType, name)                                                                       \
-    QS_XML_ARRAY(itemType, name)
+    JSON_ARRAY_MACRO(itemType, name)                                                                    \
+    XML_ARRAY_MACRO(itemType, name)
 
 /* BIND: */
 /* generate serializable propertyes JSON and XML for custom type object */
 #define QS_BIND_OBJECT(type, name)                                                                      \
-    QS_JSON_OBJECT(type, name)                                                                          \
-    QS_XML_OBJECT(type, name)
+    JSON_OBJECT_MACRO(type, name)                                                                       \
+    XML_OBJECT_MACRO(type, name)
 
 /* BIND: */
 /* generate serializable propertyes JSON and XML for collection of custom type objects */
 #define QS_BIND_COLLECTION_OBJECTS(itemType, name)                                                      \
-    QS_JSON_ARRAY_OBJECTS(itemType, name)                                                               \
-    QS_XML_ARRAY_OBJECTS(itemType, name)
+    JSON_ARRAY_OBJECTS_MACRO(itemType, name)                                                            \
+    XML_ARRAY_OBJECTS_MACRO(itemType, name)
 
 /* BIND: */
 /* generate serializable propertyes JSON and XML for dictionary with primitive value type for QT DICTIONARY TYPES */
 #define QS_BIND_QT_DICT(map, name)                                                                      \
-    QS_JSON_QT_DICT(map, name)                                                                          \
-    QS_XML_QT_DICT(map, name)
+    JSON_QT_DICT_MACRO(map, name)                                                                       \
+    XML_QT_DICT_MACRO(map, name)
 
 /* BIND: */
 /* generate serializable propertyes JSON and XML for dictionary of custom type objects for QT DICTIONARY TYPES */
 #define QS_BIND_QT_DICT_OBJECTS(map, name)                                                              \
-    QS_JSON_QT_DICT_OBJECTS(map, name)                                                                  \
-    QS_XML_QT_DICT_OBJECTS(map,name)
+    JSON_QT_DICT_OBJECTS_MACRO(map, name)                                                               \
+    XML_QT_DICT_OBJECTS_MACRO(map,name)
 
 
 /* BIND: */
 /* generate serializable propertyes JSON and XML for dictionary with primitive value type for STL DICTIONARY TYPES */
 #define QS_BIND_STL_DICT(map, name)                                                                     \
-    QS_JSON_STL_DICT(map, name)                                                                         \
-    QS_XML_STL_DICT(map, name)
+    JSON_STL_DICT_MACRO(map, name)                                                                      \
+    XML_STL_DICT_MACRO(map, name)
 
 
 /* BIND: */
 /* generate serializable propertyes JSON and XML for dictionary of custom type objects for STL DICTIONARY TYPES */
 #define QS_BIND_STL_DICT_OBJECTS(map, name)                                                             \
-    QS_JSON_STL_DICT_OBJECTS(map, name)                                                                 \
-    QS_XML_STL_DICT_OBJECTS(map,name)
+    JSON_STL_DICT_OBJECTS_MACRO(map, name)                                                              \
+    XML_STL_DICT_OBJECTS_MACRO(map,name)
 
 /* CREATE AND BIND: */
-/* Make xml attribute and generate serializable propertyes */
-/* For example: QS_ATTRIBUTE(attribute1, defaultValue) */
-#define QS_ATTRIBUTE(name, defaultValue)                                                                \
+/* Create XML property and methods for node attribute*/
+/* For example: QS_XML_ATTRIBUTE(attribute1, defaultValue) */
+#ifdef QS_HAS_XML
+#define QS_XML_ATTRIBUTE(name, defaultValue)                                                            \
     QS_DECLARE_ATTRIBUTE(name, defaultValue)                                                            \
-    QS_BIND_ATTRIBUTE(name)
+    Q_PROPERTY(QDomNode attribute_##name READ GET(xml, attribute_##name) WRITE SET(xml, attribute_##name))  \
+    private:                                                                                            \
+    QDomNode GET(xml, attribute_##name)() const                                                         \
+    {                                                                                                   \
+        QDomDocument doc;                                                                               \
+        QDomAttr a = doc.createAttribute(#name);                                                        \
+        a.setValue(QString(attribute_##name));                                                          \
+        return a;                                                                                       \
+    }                                                                                                   \
+    void SET(xml, attribute_##name)(const QDomNode &node)                                               \
+    {                                                                                                   \
+        attribute_##name = node.toAttr().value();                                                       \
+    }
+#else
+#define QS_XML_ATTRIBUTE(name, defaultValue)
+#endif
 
 /* CREATE AND BIND: */
 /* Make primitive field and generate serializable propertyes */
@@ -1291,6 +1277,14 @@ protected:                                                                      
 #define QS_FIELD(type, name)                                                                            \
     QS_DECLARE_MEMBER(type, name)                                                                       \
     QS_BIND_FIELD(type, name)
+
+#define QS_XML_FIELD(type, name)                                                                        \
+    QS_DECLARE_MEMBER(type, name)                                                                       \
+    XML_FIELD_MACRO(type, name)
+
+#define QS_JSON_FIELD(type, name)                                                                       \
+    QS_DECLARE_MEMBER(type, name)                                                                       \
+    JSON_FIELD_MACRO(type, name)
 
 /* CREATE AND BIND: */
 /* Make primitive field with asterisk mark and generate serializable propertyes */
@@ -1300,12 +1294,30 @@ protected:                                                                      
     QS_DECLARE_MEMBER(bool, name##_marked)                                                              \
     QS_BIND_MARKED_FIELD(type, name)
 
+#define QS_XML_MARKED_FIELD(type, name)                                                                 \
+    QS_DECLARE_MEMBER(type, name)                                                                       \
+    QS_DECLARE_MEMBER(bool, name##_marked)                                                              \
+    XML_MARKED_FIELD_MACRO(type, name)
+
+#define QS_JSON_MARKED_FIELD(type, name)                                                                \
+    QS_DECLARE_MEMBER(type, name)                                                                       \
+    QS_DECLARE_MEMBER(bool, name##_marked)                                                              \
+    JSON_MARKED_FIELD_MACRO(type, name)
+
 /* CREATE AND BIND: */
 /* Make QSize field and generate serializable propertyes */
 /* For example: QS_PAIR_FIELD(QSize, m_size), QS_PAIR_FIELD(QPoint, m_point) */
 #define QS_PAIR_FIELD(type, name)                                                                       \
     QS_DECLARE_MEMBER(type, name)                                                                       \
     QS_BIND_PAIR_FIELD(type, name)
+
+#define QS_XML_PAIR_FIELD(type, name)                                                                   \
+    QS_DECLARE_MEMBER(type, name)                                                                       \
+    XML_PAIR_FIELD_MACRO(type, name)
+
+#define QS_JSON_PAIR_FIELD(type, name)                                                                  \
+    QS_DECLARE_MEMBER(type, name)                                                                       \
+    JSON_PAIR_FIELD_MACRO(type, name)
 
 /* CREATE AND BIND: */
 /* Make collection of primitive type objects [collectionType<itemType> name] and generate serializable propertyes for this collection */
@@ -1314,12 +1326,28 @@ protected:                                                                      
     QS_DECLARE_MEMBER(collectionType<itemType>, name)                                                   \
     QS_BIND_COLLECTION(itemType, name)
 
+#define QS_XML_COLLECTION(collectionType, itemType, name)                                               \
+    QS_DECLARE_MEMBER(collectionType<itemType>, name)                                                   \
+    XML_ARRAY_MACRO(itemType, name)
+
+#define QS_JSON_COLLECTION(collectionType, itemType, name)                                              \
+    QS_DECLARE_MEMBER(collectionType<itemType>, name)                                                   \
+    JSON_ARRAY_MACRO(itemType, name)
+
 /* CREATE AND BIND: */
 /* Make custom class object and bind serializable propertyes */
 /* This class must be inherited from QSerializer */
 #define QS_OBJECT(type,name)                                                                            \
     QS_DECLARE_MEMBER(type, name)                                                                       \
     QS_BIND_OBJECT(type, name)
+
+#define QS_XML_OBJECT(type,name)                                                                        \
+    QS_DECLARE_MEMBER(type, name)                                                                       \
+    XML_OBJECT_MACRO(type, name)
+
+#define QS_JSON_OBJECT(type,name)                                                                       \
+    QS_DECLARE_MEMBER(type, name)                                                                       \
+    JSON_OBJECT_MACRO(type, name)
 
 /* CREATE AND BIND: */
 /* Make collection of custom class objects [collectionType<itemType> name] and bind serializable propertyes */
@@ -1328,6 +1356,13 @@ protected:                                                                      
     QS_DECLARE_MEMBER(collectionType<itemType>, name)                                                   \
     QS_BIND_COLLECTION_OBJECTS(itemType, name)
 
+#define QS_XML_COLLECTION_OBJECTS(collectionType, itemType, name)                                       \
+    QS_DECLARE_MEMBER(collectionType<itemType>, name)                                                   \
+    XML_ARRAY_OBJECTS_MACRO(itemType, name)
+
+#define QS_JSON_COLLECTION_OBJECTS(collectionType, itemType, name)                                      \
+    QS_DECLARE_MEMBER(collectionType<itemType>, name)                                                   \
+    JSON_ARRAY_OBJECTS_MACRO(itemType, name)
 
 /* CREATE AND BIND: */
 /* Make dictionary collection of simple types [dictionary<key, itemType> name] and bind serializable propertyes */
@@ -1338,6 +1373,18 @@ protected:                                                                      
     dict_##name##_t name = dict_##name##_t();                                                           \
     QS_BIND_QT_DICT(dict_##name##_t, name)
 
+#define QS_XML_QT_DICT(map, first, second, name)                                                        \
+    public:                                                                                             \
+    typedef map<first,second> dict_##name##_t;                                                          \
+    dict_##name##_t name = dict_##name##_t();                                                           \
+    XML_QT_DICT_MACRO(dict_##name##_t, name)
+
+#define QS_JSON_QT_DICT(map, first, second, name)                                                       \
+    public:                                                                                             \
+    typedef map<first,second> dict_##name##_t;                                                          \
+    dict_##name##_t name = dict_##name##_t();                                                           \
+    JSON_QT_DICT_MACRO(dict_##name##_t, name)
+
 /* CREATE AND BIND: */
 /* Make dictionary collection of custom class objects [dictionary<key, itemType> name] and bind serializable propertyes */
 /* This collection must be QT DICTIONARY TYPE */
@@ -1346,6 +1393,18 @@ protected:                                                                      
     typedef map<first,second> dict_##name##_t;                                                          \
     dict_##name##_t name = dict_##name##_t();                                                           \
     QS_BIND_QT_DICT_OBJECTS(dict_##name##_t, name)
+
+#define QS_XML_QT_DICT_OBJECTS(map, first, second, name)                                                \
+    public:                                                                                             \
+    typedef map<first,second> dict_##name##_t;                                                          \
+    dict_##name##_t name = dict_##name##_t();                                                           \
+    XML_QT_DICT_OBJECTS_MACRO(dict_##name##_t, name)
+
+#define QS_JSON_QT_DICT_OBJECTS(map, first, second, name)                                               \
+    public:                                                                                             \
+    typedef map<first,second> dict_##name##_t;                                                          \
+    dict_##name##_t name = dict_##name##_t();                                                           \
+    JSON_QT_DICT_OBJECTS_MACRO(dict_##name##_t, name)
 
 /* CREATE AND BIND: */
 /* Make dictionary collection of simple types [dictionary<key, itemType> name] and bind serializable propertyes */
@@ -1356,6 +1415,18 @@ protected:                                                                      
     dict_##name##_t name = dict_##name##_t();                                                           \
     QS_BIND_STL_DICT(dict_##name##_t, name)
 
+#define QS_XML_STL_DICT(map, first, second, name)                                                       \
+    public:                                                                                             \
+    typedef map<first,second> dict_##name##_t;                                                          \
+    dict_##name##_t name = dict_##name##_t();                                                           \
+    XML_STL_DICT_MACRO(dict_##name##_t, name)
+
+#define QS_JSON_STL_DICT(map, first, second, name)                                                      \
+    public:                                                                                             \
+    typedef map<first,second> dict_##name##_t;                                                          \
+    dict_##name##_t name = dict_##name##_t();                                                           \
+    JSON_STL_DICT_MACRO(dict_##name##_t, name)
+
 /* CREATE AND BIND: */
 /* Make dictionary collection of custom class objects [dictionary<key, itemType> name] and bind serializable propertyes */
 /* This collection must be STL DICTIONARY TYPE */
@@ -1364,6 +1435,18 @@ protected:                                                                      
     typedef map<first,second> dict_##name##_t;                                                          \
     dict_##name##_t name = dict_##name##_t();                                                           \
     QS_BIND_STL_DICT_OBJECTS(dict_##name##_t, name)
+
+#define QS_XML_STL_DICT_OBJECTS(map, first, second, name)                                               \
+    public:                                                                                             \
+    typedef map<first,second> dict_##name##_t;                                                          \
+    dict_##name##_t name = dict_##name##_t();                                                           \
+    XML_STL_DICT_OBJECTS_MACRO(dict_##name##_t, name)
+
+#define QS_JSON_STL_DICT_OBJECTS(map, first, second, name)                                              \
+    public:                                                                                             \
+    typedef map<first,second> dict_##name##_t;                                                          \
+    dict_##name##_t name = dict_##name##_t();                                                           \
+    JSON_STL_DICT_OBJECTS_MACRO(dict_##name##_t, name)
 
 #endif // QSERIALIZER_H
 
